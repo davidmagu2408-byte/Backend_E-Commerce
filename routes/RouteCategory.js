@@ -2,18 +2,32 @@ const { Category } = require("../models/category");
 const express = require("express");
 const router = express.Router();
 const cloudinary = require("../utils/cloudinary");
-const mongoose = require("mongoose");
 const multer = require("multer");
 const upload = multer();
 
 // Get all categories
 router.get("/", async (req, res) => {
   try {
-    const categoryList = await Category.find();
+    const page = parseInt(req.query.page) || 1;
+    const perPage = 6;
+    const totalPosts = await Category.countDocuments();
+    const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
+    if (page < 1 || page > totalPages) {
+      return res.status(404).json({ success: false, message: "Page not found" });
+    }
+
+    const categoryList = await Category.find().skip((page - 1) * perPage).limit(perPage).exec();
+    const category = await Category.find();
     if (!categoryList) {
       res.status(500).json({ success: false });
     }
-    res.send(categoryList);
+    return res.status(200).json({
+      "success": true,
+      "categoryList": categoryList,
+      "category": category,
+      "totalPages": totalPages,
+      "page": page
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || err });
   }
@@ -91,12 +105,10 @@ router.delete("/delete/:id", async (req, res) => {
 // Update a category by ID
 router.put("/edit/:id", upload.array("images", 10), async (req, res) => {
   try {
-    console.log(req);
-    const name = req.body?.name;
-    const color = req.body?.color;
     const existingImages = req.body.existingImages
       ? JSON.parse(req.body.existingImages)
       : [];
+    console.log(existingImages);
     let UploadResult = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
@@ -104,7 +116,8 @@ router.put("/edit/:id", upload.array("images", 10), async (req, res) => {
         UploadResult.push(url);
       }
     }
-    const finalImages = [...existingImages, ...newUploadResults];
+
+    const finalImages = [...existingImages, ...UploadResult];
     const category = await Category.findByIdAndUpdate(
       req.params.id,
       {

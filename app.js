@@ -1,21 +1,18 @@
 const express = require("express");
 const app = express();
-const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const cors = require("cors");
 require("dotenv/config");
 const dns = require("node:dns/promises");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
+const verifyToken = require("./middlewares/jwt");
 
 app.use(cors());
 app.options("/", cors());
 
 //middleware
-app.use(bodyParser.json());
-
-// Serve uploaded files
-app.use("/uploads", express.static("uploads"));
-
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 //connect DB
 mongoose
   .connect(process.env.CONNECTION_STRING)
@@ -32,4 +29,14 @@ mongoose
 
 //Routes
 const categoryRoute = require("./routes/RouteCategory");
+const productRoute = require("./routes/RouteProduct");
+const brandRoute = require("./routes/RouteBrand");
+const subCategoryRoute = require("./routes/RouteSubCategory");
+
+const userRoute = require("./routes/RouteUser");
+app.use("/api/subcategory", subCategoryRoute);
 app.use("/api/category", categoryRoute);
+app.use("/api/brand", brandRoute);
+app.use("/api/product", productRoute);
+app.use("/api/user", userRoute);
+app.use(verifyToken);

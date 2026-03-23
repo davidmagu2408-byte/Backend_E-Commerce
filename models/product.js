@@ -18,9 +18,9 @@
  * });
  */
 
-const moongoose = require("mongoose");
+const mongoose = require("mongoose");
 
-const productSchema = new moongoose.Schema({
+const productSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
@@ -30,16 +30,26 @@ const productSchema = new moongoose.Schema({
     required: true,
   },
   brand: {
-    type: String,
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Brand",
     required: true,
   },
   price: {
     type: Number,
     required: true,
   },
+  oldPrice: {
+    type: Number,
+    required: true,
+  },
   category: {
-    type: moongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.ObjectId,
     ref: "Category",
+    required: true,
+  },
+  subcategory: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "subCategory",
     required: true,
   },
   countInStock: {
@@ -64,6 +74,10 @@ const productSchema = new moongoose.Schema({
       required: true,
     },
   ],
+  discount: {
+    type: Number,
+    default: 0,
+  },
   dateCreated: {
     type: Date,
     default: Date.now,
@@ -77,5 +91,5 @@ productSchema.set("toJSON", {
   virtuals: true,
 });
 
-exports.Product = moongoose.model("Product", productSchema);
+exports.Product = mongoose.model("Product", productSchema);
 exports.productSchema = productSchema;

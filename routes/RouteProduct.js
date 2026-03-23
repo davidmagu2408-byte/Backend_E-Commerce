@@ -1,187 +1,202 @@
 const { Product } = require("../models/product");
-const { Category } = require("../models/category");
 const express = require("express");
 const router = express.Router();
 const cloudinary = require("../utils/cloudinary");
+const multer = require("multer");
 
-// Get all products
+// Upload configuration: memory storage, limit file size and validate mimetypes
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB per file
+const MAX_REQUEST_SIZE = 10 * 1024 * 1024; // 10 MB overall (via Content-Length check)
+const MAX_FILES = 10;
+const ALLOWED_MIMETYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIMETYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type; only JPEG, PNG, WEBP, GIF are allowed"));
+    }
+  },
+});
+
+// Middleware to enforce a maximum request size (basic check via Content-Length)
+router.use((req, res, next) => {
+  const contentLength = parseInt(req.headers["content-length"] || "0", 10);
+  if (contentLength && contentLength > MAX_REQUEST_SIZE) {
+    return res.status(413).json({ success: false, message: "Payload too large" });
+  }
+  next();
+});
+
+// Get all products (kept simple; original pagination/filtering omitted)
 router.get("/", async (req, res) => {
   try {
-    const productList = await Product.find().populate("category");
-    if (!productList) {
-      res.status(500).json({ success: false });
-    } else {
-      res.send(productList);
-    }
+    const products = await Product.find();
+    return res.status(200).json(products);
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({ success: false, error: err.message || err });
   }
 });
 
+// Create product with images - validate files before passing to cloudinary
+router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
+  try {
+    console.log(req.body)
+    console.log(req.files)
+    if (req.files && req.files.length > MAX_FILES) {
+      return res.status(400).json({ success: false, message: `Maximum ${MAX_FILES} files allowed` });
+    }
+
+    let UploadResult = [];
+    if (req.files && req.files.length > 0) {
+      // pass each file (buffer) to cloudinary implementation; ensure file has buffer
+      for (const file of req.files) {
+        if (!file || !file.buffer) continue; // skip unexpected items
+        // cloudinary.uploadImage should be able to accept buffer or file object
+        const url = await cloudinary.uploadImage(file);
+        UploadResult.push(url);
+      }
+    }
+
+    const product = new Product({
+      name: req.body.name,
+      description: req.body.description,
+      oldPrice: req.body.oldPrice,
+      brand: req.body.brand,
+      price: req.body.price,
+      images: UploadResult,
+      category: req.body.category,
+      subcategory: req.body.subcategory,
+      countInStock: req.body.countInStock,
+      rating: req.body.rating,
+      numReviews: req.body.numReviews,
+      isFeatured: req.body.isFeatured,
+      dateCreated: new Date(),
+    });
+    const saved = await product.save();
+    return res.status(201).send(saved);
+  } catch (err) {
+    // multer file filter errors come here as Error
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
+
+
+// Get single product with related data
 router.get("/:id", async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id).populate("category");
+    const product = await Product.findById(req.params.id).populate("category").populate("subcategory").populate("brand");
     if (!product) {
       return res.status(404).json({ message: "Product not found" });
     }
-    return res.status(200).send(product);
+    console.log(product)
+    return res.status(200).json(product);
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Error occurred while fetching product" });
+    return res.status(500).json({ success: false, error: err.message || err });
   }
 });
 
-// Get products by category ID
-router.post("/create", async (req, res) => {
+// Delete a product by ID (keep path consistent with other routes)
+router.delete("/delete/:id", async (req, res) => {
   try {
-    const category = await Category.findById(req.body.category);
-    if (!category) {
-      return res.status(400).json({ message: "Invalid category" });
-    } else {
-      const imagesRaw = req.body && req.body.images;
-      const UploadResult = await cloudinary.uploadImage(imagesRaw);
-      let product = new Product({
+    const product = await Product.findByIdAndDelete(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    return res.status(200).json({ success: true, message: "Product deleted" });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
+// Update product - accept new images with same validation
+router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
+  try {
+    console.log(req.body)
+    if (req.files && req.files.length > MAX_FILES) {
+      return res.status(400).json({ success: false, message: `Maximum ${MAX_FILES} files allowed` });
+    }
+    const existingImages = req.body.existingImages ? (() => {
+      try { return JSON.parse(req.body.existingImages); } catch (e) { return []; }
+    })() : [];
+
+    let UploadResult = [];
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        if (!file || !file.buffer) continue;
+        const url = await cloudinary.uploadImage(file);
+        UploadResult.push(url);
+      }
+    }
+
+    const finalImages = [...existingImages, ...UploadResult];
+    const product = await Product.findByIdAndUpdate(
+      req.params.id,
+      {
         name: req.body.name,
         description: req.body.description,
-        richDescription: req.body.richDescription,
-        images: UploadResult,
+        images: finalImages,
         brand: req.body.brand,
         price: req.body.price,
         category: req.body.category,
+        oldPrice: req.body.oldPrice,
+        discount: req.body.discount,
+        subcategory: req.body.subcategory,
         countInStock: req.body.countInStock,
         rating: req.body.rating,
         numReviews: req.body.numReviews,
-        isFeatured: req.body.isFeatured,
-      });
-      product = await product.save();
-      return res.status(201).send(product);
-    }
+        isFeatured: req.body.isFeatured
+      },
+      { new: true }
+    );
+
+    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
+    return res.status(200).json({
+      "success": true,
+      "message": "Product updated successfully",
+      "data": product
+    });
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Error occurred while creating product" });
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
+// Get featured products
+router.get("/get/featured/:categories", async (req, res) => {
+  try {
+    const categories = req.params.categories.split(",");
+    const products = await Product.find({ category: { $in: categories } }).limit(10);
+    return res.status(200).json(products);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || err });
   }
 });
 
 // Get products by category ID
 router.get("/category/:categoryId", async (req, res) => {
   try {
-    const products = await Product.find({
-      category: req.params.categoryId,
-    }).populate("category");
-    if (!products) {
-      return res
-        .status(404)
-        .json({ message: "No products found for this category" });
-    }
-    return res.status(200).send(products);
+    const products = await Product.find({ category: req.params.categoryId });
+    return res.status(200).json(products);
   } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Error occurred while fetching products" });
+    return res.status(500).json({ success: false, error: err.message || err });
   }
 });
 
-// Delete a product by ID
-router.delete("/:id", async (req, res) => {
+// Delete all products - ensure this is protected in production (left as-is for admin tasks)
+router.delete("/delete-all", async (req, res) => {
   try {
-    const product = await Product.findByIdAndDelete(req.params.id);
-    if (!product) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Product not found" });
-    }
-    res
-      .status(200)
-      .json({ success: true, message: "Product deleted successfully" });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
-  }
-});
-
-// Update a product by ID
-router.put("/:id", async (req, res) => {
-  try {
-    const category = await Category.findById(req.body.category);
-    if (!category) {
-      return res.status(400).json({ message: "Invalid category" });
-    }
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      {
-        name: req.body.name,
-        description: req.body.description,
-        richDescription: req.body.richDescription,
-        images: req.body.images,
-        brand: req.body.brand,
-        price: req.body.price,
-        category: req.body.category,
-        countInStock: req.body.countInStock,
-        rating: req.body.rating,
-        numReviews: req.body.numReviews,
-        isFeatured: req.body.isFeatured,
-      },
-      { new: true },
-    );
-    if (!product) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Product not found" });
-    }
-    res.status(200).json({ success: true, data: product });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
-  }
-});
-
-// Get total product count
-router.get("/get/count", async (req, res) => {
-  try {
-    const productCount = await Product.countDocuments();
-    if (productCount === 0) {
-      return res.status(404).json({ message: "No products found" });
-    }
-    return res.status(200).json({ productCount: productCount });
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Error occurred while counting products" });
-  }
-});
-
-// Get featured products
-router.get("/get/featured/:count?", async (req, res) => {
-  try {
-    const count = req.params.count || 0;
-    const featuredProducts = await Product.find({ isFeatured: true }).limit(
-      Number(count),
-    );
-    return res.status(200).json({ featuredProducts: featuredProducts });
-  } catch (err) {
-    return res
-      .status(500)
-      .json({ message: "Error occurred while fetching featured products" });
-  }
-});
-
-// Get products by multiple category IDs
-router.get("/get/featured/:categories", async (req, res) => {
-  try {
-    const categoryIds = req.params.categories.split(",");
-    const products = await Product.find({
-      category: { $in: categoryIds },
-    }).populate("category");
-    if (!products) {
-      return res
-        .status(404)
-        .json({ message: "No products found for the given categories" });
-    }
-    return res.status(200).json({ products: products });
-  } catch (err) {
-    return res.status(500).json({
-      message: "Error occurred while fetching products by categories",
+    const result = await Product.deleteMany({});
+    res.status(200).json({
+      success: true,
+      message: `${result.deletedCount} products deleted successfully`,
     });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message || err });
   }
 });
 
