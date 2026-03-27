@@ -35,8 +35,21 @@ router.use((req, res, next) => {
 // Get all products (kept simple; original pagination/filtering omitted)
 router.get("/", async (req, res) => {
   try {
-    const products = await Product.find();
-    return res.status(200).json(products);
+    const page = parseInt(req.query.page) || 1;
+    const perPage = 6;
+    const totalPosts = await Category.countDocuments();
+    const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
+    if (page < 1 || page > totalPages) {
+      return res.status(404).json({ success: false, message: "Page not found" });
+    }
+    const productList = await Product.find().skip((page - 1) * perPage).limit(perPage).exec();
+    const product = await Product.find();
+    return res.status(200).json({
+      "success": true,
+      "productList": productList,
+      "product": product,
+      "message": "Data fetched successfully"
+    });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || err });
   }
