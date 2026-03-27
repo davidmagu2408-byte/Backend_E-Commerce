@@ -58,7 +58,7 @@ router.get("/", async (req, res) => {
 // Get featured products
 router.get("/featured", async (req, res) => {
   try {
-    const products = await Product.find({ isFeatured: true }).select("-__v").lean();
+    const products = await Product.find({ isFeatured: true });
     return res.status(200).json(products);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || err });
@@ -68,8 +68,6 @@ router.get("/featured", async (req, res) => {
 // Create product with images - validate files before passing to cloudinary
 router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
   try {
-    console.log(req.body)
-    console.log(req.files)
     if (req.files && req.files.length > MAX_FILES) {
       return res.status(400).json({ success: false, message: `Maximum ${MAX_FILES} files allowed` });
     }
