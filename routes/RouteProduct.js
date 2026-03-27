@@ -58,8 +58,12 @@ router.get("/", async (req, res) => {
 // Get featured products
 router.get("/featured", async (req, res) => {
   try {
-    const products = await Product.find({ isFeatured: true });
-    return res.status(200).json(products);
+    const product = await Product.find({ isFeatured: true });
+    return res.status(200).json({
+      "success": true,
+      "product": product,
+      "message": "Data fetched successfully"
+    });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || err });
   }
