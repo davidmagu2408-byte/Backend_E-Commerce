@@ -180,10 +180,9 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
 });
 
 // Get featured products
-router.get("/get/featured/:categories", async (req, res) => {
+router.get("/featured", async (req, res) => {
   try {
-    const categories = req.params.categories.split(",");
-    const products = await Product.find({ category: { $in: categories } }).limit(10);
+    const products = await Product.find({ isFeatured: true });
     return res.status(200).json(products);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || err });
