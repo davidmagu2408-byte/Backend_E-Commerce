@@ -59,11 +59,15 @@ router.get("/", async (req, res) => {
 router.get("/featured", async (req, res) => {
   try {
     const product = await Product.find({ isFeatured: true });
-    return res.status(200).json({
-      "success": true,
-      "product": product,
-      "message": "Data fetched successfully"
-    });
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    } else {
+      return res.status(200).json({
+        "success": true,
+        "product": product,
+        "message": "Data fetched successfully"
+      });
+    }
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message || err });
   }

@@ -20,14 +20,15 @@ router.get("/", async (req, res) => {
     const category = await Category.find();
     if (!categoryList) {
       res.status(500).json({ success: false });
+    } else {
+      res.status(201).json({
+        "success": true,
+        "categoryList": categoryList,
+        "category": category,
+        "totalPages": totalPages,
+        "page": page
+      });
     }
-    return res.status(200).json({
-      "success": true,
-      "categoryList": categoryList,
-      "category": category,
-      "totalPages": totalPages,
-      "page": page
-    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message || err });
   }
