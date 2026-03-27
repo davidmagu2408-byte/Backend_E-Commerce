@@ -37,7 +37,7 @@ router.get("/", async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const perPage = 6;
-    const totalPosts = await Category.countDocuments();
+    const totalPosts = await Product.countDocuments();
     const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
     if (page < 1 || page > totalPages) {
       return res.status(404).json({ success: false, message: "Page not found" });
