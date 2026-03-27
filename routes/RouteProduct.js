@@ -55,6 +55,16 @@ router.get("/", async (req, res) => {
   }
 });
 
+// Get featured products
+router.get("/featured", async (req, res) => {
+  try {
+    const products = await Product.find({ isFeatured: true }).select("-__v").lean();
+    return res.status(200).json(products);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
 // Create product with images - validate files before passing to cloudinary
 router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
   try {
@@ -179,15 +189,7 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
   }
 });
 
-// Get featured products
-router.get("/featured", async (req, res) => {
-  try {
-    const products = await Product.find({ isFeatured: true });
-    return res.status(200).json(products);
-  } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
-  }
-});
+
 
 // Get products by category ID
 router.get("/category/:categoryId", async (req, res) => {
