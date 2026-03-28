@@ -13,15 +13,21 @@ router.get("/", async (req, res) => {
     const totalPosts = await Category.countDocuments();
     const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
     if (page < 1 || page > totalPages) {
-      return res.status(404).json({ success: false, message: "Page not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Page not found"
+      });
     }
 
     const categoryList = await Category.find().skip((page - 1) * perPage).limit(perPage).exec();
     const category = await Category.find();
     if (!categoryList) {
-      res.status(500).json({ success: false });
+      res.status(500).json({
+        "success": false,
+        "message": "Category list not found"
+      });
     } else {
-      res.status(201).json({
+      res.status(200).json({
         "success": true,
         "categoryList": categoryList,
         "category": category,
@@ -30,7 +36,10 @@ router.get("/", async (req, res) => {
       });
     }
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
+    res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -39,11 +48,14 @@ router.delete("/delete-all", async (req, res) => {
   try {
     const result = await Category.deleteMany({});
     res.status(200).json({
-      success: true,
-      message: `${result.deletedCount} categories deleted successfully`,
+      "success": true,
+      "message": `${result.deletedCount} categories deleted successfully`,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
+    res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -52,13 +64,24 @@ router.get("/:id", async (req, res) => {
   try {
     const category = await Category.findById(req.params.id);
     if (!category) {
-      return res.status(404).json({ message: "Category not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Category id not found"
+      });
     }
-    return res.status(200).send(category);
+    return res.status(200).send(
+      {
+        "success": true,
+        "category": category,
+        "message": "Data fetched successfully"
+      });
   } catch (err) {
     return res
       .status(500)
-      .json({ message: "Error occurred while fetching category" });
+      .json({
+        "success": false,
+        "error": err.message || err
+      });
   }
 });
 
@@ -79,10 +102,18 @@ router.post("/create", upload.array("images", 10), async (req, res) => {
     });
 
     const saved = await category.save();
-    return res.status(201).json(saved);
+    return res.status(200).json(
+      {
+        "success": true,
+        "category": saved,
+        "message": "Data saved successfully"
+      })
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -91,15 +122,20 @@ router.delete("/delete/:id", async (req, res) => {
   try {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Category not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Category not found"
+      });
     }
-    res
-      .status(200)
-      .json({ success: true, message: "Category deleted successfully" });
+    res.status(200).json({
+      "success": true,
+      "message": "Category deleted successfully"
+    });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
+    res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -129,14 +165,20 @@ router.put("/edit/:id", upload.array("images", 10), async (req, res) => {
       { new: true },
     );
     if (!category)
-      return res.status(404).json({ success: false, message: "Not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Not found"
+      });
     res.status(200).json({
-      success: true,
-      data: category,
-      message: "Data updated successfully",
+      "success": true,
+      "data": category,
+      "message": "Data updated successfully",
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
+    res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 

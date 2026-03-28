@@ -10,13 +10,16 @@ router.post("/create", async (req, res) => {
             name: req.body.name,
         });
         const data = await subcategory.save();
-        return res.status(201).json({
+        return res.status(200).json({
             "success": true,
             "subcategory": data,
             "message": "Data saved successfully"
         });
     } catch (err) {
-        res.status(500).json({ success: false, error: err.message || err });
+        res.status(500).json({
+            "success": false,
+            "error": err.message || err
+        });
     }
 });
 
@@ -27,14 +30,20 @@ router.get("/", async (req, res) => {
         const totalPosts = await subCategory.countDocuments();
         const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
         if (page < 1 || page > totalPages) {
-            return res.status(404).json({ success: false, message: "Page not found" });
+            return res.status(404).json({
+                "success": false,
+                "message": "Page not found"
+            });
         }
         const data = await subCategory.find().skip((page - 1) * perPage).limit(perPage).exec();
         const subData = await subCategory.find();
         if (!data) {
-            res.status(500).json({ success: false });
+            res.status(500).json({
+                "success": false,
+                "message": "SubCategory list not found"
+            });
         } else {
-            res.status(201).json({
+            res.status(200).json({
                 "success": true,
                 "subCategoryList": data,
                 "subCategory": subData,
@@ -43,7 +52,10 @@ router.get("/", async (req, res) => {
             });
         }
     } catch (err) {
-        res.status(500).json({ success: false, error: err.message || err });
+        res.status(500).json({
+            "success": false,
+            "error": err.message || err
+        });
     }
 });
 

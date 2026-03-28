@@ -27,7 +27,10 @@ const upload = multer({
 router.use((req, res, next) => {
   const contentLength = parseInt(req.headers["content-length"] || "0", 10);
   if (contentLength && contentLength > MAX_REQUEST_SIZE) {
-    return res.status(413).json({ success: false, message: "Payload too large" });
+    return res.status(413).json({
+      "success": false,
+      "message": "Payload too large"
+    });
   }
   next();
 });
@@ -40,7 +43,10 @@ router.get("/", async (req, res) => {
     const totalPosts = await Product.countDocuments();
     const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
     if (page < 1 || page > totalPages) {
-      return res.status(404).json({ success: false, message: "Page not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Page not found"
+      });
     }
     const productList = await Product.find().skip((page - 1) * perPage).limit(perPage).exec();
     const product = await Product.find();
@@ -51,7 +57,10 @@ router.get("/", async (req, res) => {
       "message": "Data fetched successfully"
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -60,7 +69,10 @@ router.get("/featured", async (req, res) => {
   try {
     const product = await Product.find({ isFeatured: true });
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Product not found"
+      });
     } else {
       return res.status(200).json({
         "success": true,
@@ -69,7 +81,10 @@ router.get("/featured", async (req, res) => {
       });
     }
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -107,10 +122,17 @@ router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
       dateCreated: new Date(),
     });
     const saved = await product.save();
-    return res.status(201).send(saved);
+    return res.status(200).send({
+      "success": true,
+      "product": saved,
+      "message": "Data saved successfully"
+    });
   } catch (err) {
     // multer file filter errors come here as Error
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -121,12 +143,22 @@ router.get("/:id", async (req, res) => {
   try {
     const product = await Product.findById(req.params.id).populate("category").populate("subcategory").populate("brand");
     if (!product) {
-      return res.status(404).json({ message: "Product not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Product not found"
+      });
     }
     console.log("data", product)
-    return res.status(200).json(product);
+    return res.status(200).json({
+      "success": true,
+      "product": product,
+      "message": "Data product by ID fetched successfully"
+    });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -135,11 +167,20 @@ router.delete("/delete/:id", async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) {
-      return res.status(404).json({ success: false, message: "Product not found" });
+      return res.status(404).json({
+        "success": false,
+        "message": "Product not found"
+      });
     }
-    return res.status(200).json({ success: true, message: "Product deleted" });
+    return res.status(200).json({
+      "success": true,
+      "message": "Product deleted"
+    });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -148,7 +189,10 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
   try {
     console.log(req.body)
     if (req.files && req.files.length > MAX_FILES) {
-      return res.status(400).json({ success: false, message: `Maximum ${MAX_FILES} files allowed` });
+      return res.status(400).json({
+        "success": false,
+        "message": `Maximum ${MAX_FILES} files allowed`
+      });
     }
     const existingImages = req.body.existingImages ? (() => {
       try { return JSON.parse(req.body.existingImages); } catch (e) { return []; }
@@ -184,14 +228,20 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
       { new: true }
     );
 
-    if (!product) return res.status(404).json({ success: false, message: "Product not found" });
+    if (!product) return res.status(404).json({
+      "success": false,
+      "message": "Product not found"
+    });
     return res.status(200).json({
       "success": true,
       "message": "Product updated successfully",
       "data": product
     });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -201,9 +251,16 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
 router.get("/category/:categoryId", async (req, res) => {
   try {
     const products = await Product.find({ category: req.params.categoryId });
-    return res.status(200).json(products);
+    return res.status(200).json({
+      "success": true,
+      "products": products,
+      "message": "List products by category ID fetched successfully"
+    });
   } catch (err) {
-    return res.status(500).json({ success: false, error: err.message || err });
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 
@@ -212,11 +269,14 @@ router.delete("/delete-all", async (req, res) => {
   try {
     const result = await Product.deleteMany({});
     res.status(200).json({
-      success: true,
-      message: `${result.deletedCount} products deleted successfully`,
+      "success": true,
+      "message": `${result.deletedCount} products deleted successfully`,
     });
   } catch (err) {
-    res.status(500).json({ success: false, error: err.message || err });
+    res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
   }
 });
 

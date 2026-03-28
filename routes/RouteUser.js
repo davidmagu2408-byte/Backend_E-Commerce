@@ -10,7 +10,10 @@ router.post("/register", async (req, res) => {
         console.log(req.body)
         let user = await User.findOne({ email: req.body.email });
         if (user) {
-            return res.status(400).send("User already registered.");
+            return res.status(400).send({
+                "success": false,
+                "message": "User already registered."
+            });
         }
         user = new User({
             name: req.body.name,
@@ -25,34 +28,60 @@ router.post("/register", async (req, res) => {
         user.password = await bcrypt.hash(user.password, salt);
         await user.save();
         const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: "1h" });
-        res.status(200).send({ name: user.name, email: user.email, token });
+        res.status(200).send({
+            "success": true,
+            "message": "User registered successfully",
+        });
     } catch (err) {
-        res.status(500).send("Error. " + err);
+        res.status(500).send({
+            "success": false,
+            "error": err.message || err
+        });
     }
 });
 router.post("/login", async (req, res) => {
     try {
         const user = await User.findOne({ email: req.body.email });
         if (!user) {
-            return res.status(400).send("User not found.");
+            return res.status(400).send({
+                "success": false,
+                "message": "User not found."
+            });
         }
         const validPassword = await bcrypt.compare(req.body.password, user.password);
         if (!validPassword) {
             return res.status(400).send("Invalid password.");
         }
         const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: "3h" });
-        res.status(200).send({ name: user.name, email: user.email, token, isAdmin: user.isAdmin });
+        res.status(200).send({
+            "success": true,
+            "message": "User logged in successfully",
+            "name": user.name,
+            "email": user.email,
+            token,
+            "isAdmin": user.isAdmin
+        });
     } catch (err) {
-        res.status(500).send("Error. " + err);
+        res.status(500).send({
+            "success": false,
+            "error": err.message || err
+        });
     }
 })
 
 router.get("/profile", verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select("-password");
-        res.status(200).send(user);
+        res.status(200).send({
+            "success": true,
+            "user": user,
+            "message": "User profile fetched successfully"
+        });
     } catch (err) {
-        res.status(500).send("Error. " + err);
+        res.status(500).send({
+            "success": false,
+            "error": err.message || err
+        });
     }
 });
 
@@ -67,14 +96,24 @@ router.put("/update", verifyToken, async (req, res) => {
             address: req.body.address
         }, { new: true });
         if (!user) {
-            return res.status(400).send("User not found.");
+            return res.status(400).send({
+                "success": false,
+                "message": "User not found."
+            });
         }
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
         await user.save();
-        res.status(200).send(user);
+        res.status(200).send({
+            "success": true,
+            "message": "User updated successfully",
+            "user": user
+        });
     } catch (err) {
-        res.status(500).send("Error. " + err);
+        res.status(500).send({
+            "success": false,
+            "error": err.message || err
+        });
     }
 });
 
