@@ -30,6 +30,12 @@ const userSchema = mongoose.Schema({
         type: String,
         required: true,
     },
+    images: [
+        {
+            type: String,
+            required: true,
+        },
+    ]
 });
 
 userSchema.virtual("id").get(function () {
