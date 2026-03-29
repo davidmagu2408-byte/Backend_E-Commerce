@@ -48,6 +48,7 @@ router.post("/login", async (req, res) => {
                 "message": "Tài khoản không tồn tại."
             });
         }
+
         const validPassword = await bcrypt.compare(req.body.password, user.password);
         if (!validPassword) {
             return res.status(400).send({
@@ -55,6 +56,7 @@ router.post("/login", async (req, res) => {
                 "message": "Mật khẩu không đúng."
             });
         }
+
         const accessToken = jwt.sign({ _id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
         const refreshToken = jwt.sign({ _id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
         user.refreshToken = refreshToken;
@@ -87,19 +89,25 @@ router.post("/login", async (req, res) => {
 router.post("/logout", verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
+        if (!user) {
+            return res.status(400).send({
+                "success": false,
+                "message": "User not found."
+            });
+        }
         user.refreshToken = ""; // Kill the session
         await user.save();
         res.clearCookie("refreshToken", {
             httpOnly: true,
             sameSite: "strict",
             secure: true
-        });
-        res.status(200).json({
+        }).status(200).json({
             "success": true,
             "message": "Logged out successfully"
         });
     } catch (err) {
         res.status(500).send(err.message);
+        console.log(err);
     }
 });
 

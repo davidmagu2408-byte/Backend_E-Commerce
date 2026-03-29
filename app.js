@@ -15,8 +15,8 @@ const ALLOWED_ORIGINS = [
 const corsOptions = {
   origin: ALLOWED_ORIGINS,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Cho phép cả OPTIONS
-  allowedHeaders: ['Content-Type', 'Authorization', 'auth-token'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'], // Cho phép cả OPTIONS
+  allowedHeaders: ['auth-token', 'Content-Type', 'Authorization'],
 };
 
 //middleware
