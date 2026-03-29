@@ -87,7 +87,7 @@ router.post("/login", async (req, res) => {
 router.post("/logout", verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.user._id);
-        user.refreshToken = null; // Kill the session
+        user.refreshToken = ""; // Kill the session
         await user.save();
         res.clearCookie("refreshToken", {
             httpOnly: true,
