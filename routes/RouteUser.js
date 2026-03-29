@@ -10,7 +10,7 @@ router.post("/register", async (req, res) => {
         console.log(req.body)
         let user = await User.findOne({ email: req.body.email });
         if (user) {
-            return res.status(400).send({
+            return res.status(400).json({
                 "success": false,
                 "message": "User already registered."
             });
@@ -27,7 +27,6 @@ router.post("/register", async (req, res) => {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
         await user.save();
-        const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: "1h" });
         res.status(200).send({
             "success": true,
             "message": "User registered successfully",
@@ -39,27 +38,43 @@ router.post("/register", async (req, res) => {
         });
     }
 });
+
 router.post("/login", async (req, res) => {
     try {
         const user = await User.findOne({ email: req.body.email });
         if (!user) {
             return res.status(400).send({
                 "success": false,
-                "message": "User not found."
+                "message": "Tài khoản không tồn tại."
             });
         }
         const validPassword = await bcrypt.compare(req.body.password, user.password);
         if (!validPassword) {
-            return res.status(400).send("Invalid password.");
+            return res.status(400).send({
+                "success": false,
+                "message": "Mật khẩu không đúng."
+            });
         }
-        const token = jwt.sign({ _id: user._id }, process.env.TOKEN_SECRET, { expiresIn: "3h" });
+        const accessToken = jwt.sign({ _id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
+        const refreshToken = jwt.sign({ _id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
+        user.refreshToken = refreshToken;
+        await user.save();
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true, // JS không thể đọc được
+            secure: true,   // Chỉ gửi qua HTTPS (trong production)
+            sameSite: 'strict', // Chống tấn công CSRF
+            maxAge: 7 * 24 * 60 * 60 * 1000 // Hết hạn sau 7 ngày
+        });
         res.status(200).send({
             "success": true,
-            "message": "User logged in successfully",
-            "name": user.name,
-            "email": user.email,
-            token,
-            "isAdmin": user.isAdmin
+            "message": "Đăng nhập thành công.",
+            "user": {
+                "name": user.name,
+                "email": user.email,
+                "isAdmin": user.isAdmin
+            },
+            accessToken,
+            refreshToken,
         });
     } catch (err) {
         res.status(500).send({
@@ -68,6 +83,25 @@ router.post("/login", async (req, res) => {
         });
     }
 })
+
+router.post("/logout", verifyToken, async (req, res) => {
+    try {
+        const user = await User.findById(req.user._id);
+        user.refreshToken = null; // Kill the session
+        await user.save();
+        res.clearCookie("refreshToken", {
+            httpOnly: true,
+            sameSite: "strict",
+            secure: true
+        });
+        res.status(200).json({
+            "success": true,
+            "message": "Logged out successfully"
+        });
+    } catch (err) {
+        res.status(500).send(err.message);
+    }
+});
 
 router.get("/profile", verifyToken, async (req, res) => {
     try {

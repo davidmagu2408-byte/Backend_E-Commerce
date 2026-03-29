@@ -28,14 +28,15 @@ const userSchema = mongoose.Schema({
     },
     address: {
         type: String,
-        required: true,
+        required: false,
     },
     images: [
         {
             type: String,
-            required: true,
+            required: false,
         },
-    ]
+    ],
+    refreshToken: { type: String }
 });
 
 userSchema.virtual("id").get(function () {

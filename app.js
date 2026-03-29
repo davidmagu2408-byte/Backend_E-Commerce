@@ -5,14 +5,27 @@ const cors = require("cors");
 require("dotenv/config");
 const dns = require("node:dns/promises");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
-const verifyToken = require("./middlewares/jwt");
+const cookieParser = require("cookie-parser");
 
-app.use(cors());
-app.options("/", cors());
+const ALLOWED_ORIGINS = [
+  'https://client-demo-ecommerce.vercel.app',
+  'https://admin-demo-ecommerce.vercel.app',
+  'http://localhost:5173'
+];
+const corsOptions = {
+  origin: ALLOWED_ORIGINS,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Cho phép cả OPTIONS
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
 
 //middleware
+app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
+
 //connect DB
 mongoose
   .connect(process.env.CONNECTION_STRING)
@@ -32,11 +45,14 @@ const categoryRoute = require("./routes/RouteCategory");
 const productRoute = require("./routes/RouteProduct");
 const brandRoute = require("./routes/RouteBrand");
 const subCategoryRoute = require("./routes/RouteSubCategory");
-
 const userRoute = require("./routes/RouteUser");
+const refreshTokenRoute = require("./routes/RouteRefreshToken");
+const bannerRoute = require("./routes/RouteBanner");
+
 app.use("/api/subcategory", subCategoryRoute);
 app.use("/api/category", categoryRoute);
 app.use("/api/brand", brandRoute);
 app.use("/api/product", productRoute);
 app.use("/api/user", userRoute);
-app.use(verifyToken);
+app.use("/api", refreshTokenRoute);
+app.use("/api/banner", bannerRoute);
