@@ -3,7 +3,35 @@ const express = require("express");
 const router = express.Router();
 const cloudinary = require("../utils/cloudinary");
 const multer = require("multer");
-const upload = multer();
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB per file
+const MAX_REQUEST_SIZE = 10 * 1024 * 1024; // 10 MB overall
+const MAX_FILES = 10;
+const ALLOWED_MIMETYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_MIMETYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type; only JPEG, PNG, WEBP, GIF are allowed"));
+    }
+  },
+});
+
+router.use((req, res, next) => {
+  const contentLength = parseInt(req.headers["content-length"] || "0", 10);
+  if (contentLength && contentLength > MAX_REQUEST_SIZE) {
+    return res.status(413).json({
+      success: false,
+      message: "Payload too large"
+    });
+  }
+  next();
+});
 
 // Get all categories
 router.get("/", async (req, res) => {

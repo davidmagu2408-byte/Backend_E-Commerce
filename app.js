@@ -10,13 +10,14 @@ const cookieParser = require("cookie-parser");
 const ALLOWED_ORIGINS = [
   'https://client-demo-ecommerce.vercel.app',
   'https://admin-demo-ecommerce.vercel.app',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'http://localhost:5174'
 ];
 const corsOptions = {
   origin: ALLOWED_ORIGINS,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE'], // Cho phép cả OPTIONS
-  allowedHeaders: ['auth-token', 'Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
 //middleware
@@ -46,7 +47,6 @@ const productRoute = require("./routes/RouteProduct");
 const brandRoute = require("./routes/RouteBrand");
 const subCategoryRoute = require("./routes/RouteSubCategory");
 const userRoute = require("./routes/RouteUser");
-const refreshTokenRoute = require("./routes/RouteRefreshToken");
 const bannerRoute = require("./routes/RouteBanner");
 
 app.use("/api/subcategory", subCategoryRoute);
@@ -54,5 +54,4 @@ app.use("/api/category", categoryRoute);
 app.use("/api/brand", brandRoute);
 app.use("/api/product", productRoute);
 app.use("/api/user", userRoute);
-app.use("/api", refreshTokenRoute);
 app.use("/api/banner", bannerRoute);
