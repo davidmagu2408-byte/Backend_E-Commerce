@@ -48,6 +48,7 @@ const brandRoute = require("./routes/RouteBrand");
 const subCategoryRoute = require("./routes/RouteSubCategory");
 const userRoute = require("./routes/RouteUser");
 const bannerRoute = require("./routes/RouteBanner");
+const orderRoute = require("./routes/RouteOrder");
 
 app.use("/api/subcategory", subCategoryRoute);
 app.use("/api/category", categoryRoute);
@@ -55,3 +56,4 @@ app.use("/api/brand", brandRoute);
 app.use("/api/product", productRoute);
 app.use("/api/user", userRoute);
 app.use("/api/banner", bannerRoute);
+app.use("/api/order", orderRoute);

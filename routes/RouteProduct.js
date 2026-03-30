@@ -112,13 +112,14 @@ router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
       oldPrice: req.body.oldPrice,
       brand: req.body.brand,
       price: req.body.price,
-      images: UploadResult,
+      images: UploadResult.length > 0 ? UploadResult : (req.body.images || []),
       category: req.body.category,
       subcategory: req.body.subcategory,
       countInStock: req.body.countInStock,
       rating: req.body.rating,
       numReviews: req.body.numReviews,
       isFeatured: req.body.isFeatured,
+      discount: req.body.discount || 0,
       dateCreated: new Date(),
     });
     const saved = await product.save();
@@ -137,6 +138,40 @@ router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
 });
 
 
+
+// Get products by category ID
+router.get("/category/:categoryId", async (req, res) => {
+  try {
+    const products = await Product.find({ category: req.params.categoryId });
+    return res.status(200).json({
+      "success": true,
+      "products": products,
+      "message": "List products by category ID fetched successfully"
+    });
+  } catch (err) {
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
+  }
+});
+
+// Get products by subcategory ID
+router.get("/subcategory/:subcategoryId", async (req, res) => {
+  try {
+    const products = await Product.find({ subcategory: req.params.subcategoryId });
+    return res.status(200).json({
+      "success": true,
+      "products": products,
+      "message": "List products by subcategory ID fetched successfully"
+    });
+  } catch (err) {
+    return res.status(500).json({
+      "success": false,
+      "error": err.message || err
+    });
+  }
+});
 
 // Get single product with related data
 router.get("/:id", async (req, res) => {
@@ -187,7 +222,6 @@ router.delete("/delete/:id", async (req, res) => {
 // Update product - accept new images with same validation
 router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
   try {
-    console.log(req.body)
     if (req.files && req.files.length > MAX_FILES) {
       return res.status(400).json({
         "success": false,
@@ -246,23 +280,6 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
 });
 
 
-
-// Get products by category ID
-router.get("/category/:categoryId", async (req, res) => {
-  try {
-    const products = await Product.find({ category: req.params.categoryId });
-    return res.status(200).json({
-      "success": true,
-      "products": products,
-      "message": "List products by category ID fetched successfully"
-    });
-  } catch (err) {
-    return res.status(500).json({
-      "success": false,
-      "error": err.message || err
-    });
-  }
-});
 
 // Delete all products - ensure this is protected in production (left as-is for admin tasks)
 router.delete("/delete-all", async (req, res) => {
