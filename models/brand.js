@@ -7,7 +7,7 @@ const brandSchema = mongoose.Schema({
     },
     subcategory: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Subcategory",
+        ref: "subCategory",
         required: true,
     },
 });

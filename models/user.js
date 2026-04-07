@@ -9,10 +9,6 @@ const userSchema = mongoose.Schema({
         type: String,
         required: true,
     },
-    oldPassword: {
-        type: String,
-        required: false,
-    },
     password: {
         type: String,
         required: true,

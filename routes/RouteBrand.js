@@ -1,15 +1,12 @@
 const express = require("express");
 const { Brand } = require("../models/brand");
 const router = express.Router();
-
-
+const verifyToken = require("../middlewares/jwt");
+const { verifyAdmin } = require("../middlewares/jwt");
 
 router.get("/", async (req, res) => {
     try {
-        const brandList = await Brand.find();
-        if (!brandList.length === 0 && !Array.isArray(brandList) || !brandList.length === 0) {
-            return res.status(500).json({ success: false, message: "Data not found" });
-        }
+        const brandList = await Brand.find().populate("subcategory");
         res.status(200).json({
             success: true,
             brandList: brandList,
@@ -24,9 +21,9 @@ router.get("/", async (req, res) => {
 
 router.get("/:id", async (req, res) => {
     try {
-        const brand = await Brand.findById(req.params.id);
+        const brand = await Brand.findById(req.params.id).populate("subcategory");
         if (!brand) {
-            return res.status(500).json({
+            return res.status(404).json({
                 success: false,
                 message: "Brand not found"
             });
@@ -44,9 +41,8 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-router.post("/create", async (req, res) => {
+router.post("/create", verifyToken, verifyAdmin, async (req, res) => {
     try {
-
         const brand = new Brand({
             name: req.body.name,
             subcategory: req.body.subcategory,
@@ -63,9 +59,57 @@ router.post("/create", async (req, res) => {
             error: err.message || err
         });
     }
-}
-)
+});
 
+router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const brand = await Brand.findByIdAndUpdate(
+            req.params.id,
+            {
+                name: req.body.name,
+                subcategory: req.body.subcategory,
+            },
+            { new: true }
+        );
+        if (!brand) {
+            return res.status(404).json({
+                success: false,
+                message: "Brand not found"
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            brand: brand,
+            message: "Brand updated successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            error: err.message || err
+        });
+    }
+});
+
+router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+        const brand = await Brand.findByIdAndDelete(req.params.id);
+        if (!brand) {
+            return res.status(404).json({
+                success: false,
+                message: "Brand not found"
+            });
+        }
+        return res.status(200).json({
+            success: true,
+            message: "Brand deleted successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            error: err.message || err
+        });
+    }
+});
 
 module.exports = router;
 

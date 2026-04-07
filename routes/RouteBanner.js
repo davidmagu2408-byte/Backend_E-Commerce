@@ -3,6 +3,8 @@ const { Banner } = require("../models/banner");
 const router = express.Router();
 const multer = require("multer");
 const cloudinary = require("../utils/cloudinary");
+const verifyToken = require("../middlewares/jwt");
+const { verifyAdmin } = require("../middlewares/jwt");
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB per file
 const MAX_REQUEST_SIZE = 10 * 1024 * 1024; // 10 MB overall
@@ -81,7 +83,7 @@ router.get("/:id", async (req, res) => {
     }
 });
 
-router.post("/create", (req, res, next) => {
+router.post("/create", verifyToken, verifyAdmin, (req, res, next) => {
     upload.array("images", MAX_FILES)(req, res, (err) => {
         if (err) {
             return res.status(400).json({
@@ -119,7 +121,7 @@ router.post("/create", (req, res, next) => {
     }
 });
 
-router.delete("/delete/:id", async (req, res) => {
+router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
     try {
         const banner = await Banner.findByIdAndDelete(req.params.id);
         if (!banner) {

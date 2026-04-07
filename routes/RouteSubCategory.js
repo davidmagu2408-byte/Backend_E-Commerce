@@ -1,8 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const { subCategory } = require("../models/subCategory");
+const verifyToken = require("../middlewares/jwt");
+const { verifyAdmin } = require("../middlewares/jwt");
 
-router.post("/create", async (req, res) => {
+router.post("/create", verifyToken, verifyAdmin, async (req, res) => {
     try {
 
         const subcategory = new subCategory({
@@ -25,9 +27,21 @@ router.post("/create", async (req, res) => {
 
 router.get("/", async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const perPage = 6;
         const totalPosts = await subCategory.countDocuments();
+
+        // Return all items without pagination when no page param
+        if (!req.query.page) {
+            const allSubCategories = await subCategory.find().populate("category");
+            return res.status(200).json({
+                "success": true,
+                "subCategoryList": allSubCategories,
+                "subCategory": allSubCategories,
+                "totalDocs": totalPosts
+            });
+        }
+
+        const page = parseInt(req.query.page);
+        const perPage = 6;
         const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
         if (page < 1 || page > totalPages) {
             return res.status(404).json({
@@ -36,21 +50,19 @@ router.get("/", async (req, res) => {
             });
         }
         const data = await subCategory.find().populate("category").skip((page - 1) * perPage).limit(perPage).exec();
-        const subData = await subCategory.find();
         if (!data) {
-            res.status(500).json({
+            return res.status(500).json({
                 "success": false,
                 "message": "SubCategory list not found"
             });
-        } else {
-            res.status(200).json({
-                "success": true,
-                "subCategoryList": data,
-                "subCategory": subData,
-                "totalPages": totalPages,
-                "page": page
-            });
         }
+        res.status(200).json({
+            "success": true,
+            "subCategoryList": data,
+            "totalDocs": totalPosts,
+            "totalPages": totalPages,
+            "page": page
+        });
     } catch (err) {
         res.status(500).json({
             "success": false,
@@ -83,7 +95,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Update subcategory
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
     try {
         const data = await subCategory.findByIdAndUpdate(
             req.params.id,
@@ -113,7 +125,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete subcategory by ID
-router.delete("/delete/:id", async (req, res) => {
+router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
     try {
         const data = await subCategory.findByIdAndDelete(req.params.id);
         if (!data) {
@@ -135,7 +147,7 @@ router.delete("/delete/:id", async (req, res) => {
 });
 
 // Delete all subcategories
-router.delete("/delete-all", async (req, res) => {
+router.delete("/delete-all", verifyToken, verifyAdmin, async (req, res) => {
     try {
         const result = await subCategory.deleteMany({});
         return res.status(200).json({

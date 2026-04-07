@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 const cloudinary = require("../utils/cloudinary");
 const multer = require("multer");
+const verifyToken = require("../middlewares/jwt");
+const { verifyAdmin } = require("../middlewares/jwt");
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB per file
 const MAX_REQUEST_SIZE = 10 * 1024 * 1024; // 10 MB overall
@@ -36,9 +38,22 @@ router.use((req, res, next) => {
 // Get all categories
 router.get("/", async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const perPage = 6;
     const totalPosts = await Category.countDocuments();
+
+    // Return all items without pagination when no page param
+    if (!req.query.page) {
+      const allCategories = await Category.find();
+      return res.status(200).json({
+        "success": true,
+        "categoryList": allCategories,
+        "category": allCategories,
+        "totalDocs": totalPosts,
+        "message": "Data fetched successfully"
+      });
+    }
+
+    const page = parseInt(req.query.page);
+    const perPage = 6;
     const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
     if (page < 1 || page > totalPages) {
       return res.status(404).json({
@@ -48,21 +63,20 @@ router.get("/", async (req, res) => {
     }
 
     const categoryList = await Category.find().skip((page - 1) * perPage).limit(perPage).exec();
-    const category = await Category.find();
     if (!categoryList) {
-      res.status(500).json({
+      return res.status(500).json({
         "success": false,
         "message": "Category list not found"
       });
-    } else {
-      res.status(200).json({
-        "success": true,
-        "categoryList": categoryList,
-        "category": category,
-        "totalPages": totalPages,
-        "page": page
-      });
     }
+    res.status(200).json({
+      "success": true,
+      "categoryList": categoryList,
+      "totalDocs": totalPosts,
+      "totalPages": totalPages,
+      "page": page,
+      "message": "Data fetched successfully"
+    });
   } catch (err) {
     res.status(500).json({
       "success": false,
@@ -72,7 +86,7 @@ router.get("/", async (req, res) => {
 });
 
 // Delete all categories
-router.delete("/delete-all", async (req, res) => {
+router.delete("/delete-all", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await Category.deleteMany({});
     res.status(200).json({
@@ -114,7 +128,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Create a new category
-router.post("/create", upload.array("images", 10), async (req, res) => {
+router.post("/create", verifyToken, verifyAdmin, upload.array("images", 10), async (req, res) => {
   try {
     let UploadResult = [];
     if (req.files && req.files.length > 0) {
@@ -146,7 +160,7 @@ router.post("/create", upload.array("images", 10), async (req, res) => {
 });
 
 // Delete a category by ID
-router.delete("/delete/:id", async (req, res) => {
+router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) {
@@ -168,12 +182,11 @@ router.delete("/delete/:id", async (req, res) => {
 });
 
 // Update a category by ID
-router.put("/edit/:id", upload.array("images", 10), async (req, res) => {
+router.put("/edit/:id", verifyToken, verifyAdmin, upload.array("images", 10), async (req, res) => {
   try {
     const existingImages = req.body.existingImages
       ? JSON.parse(req.body.existingImages)
       : [];
-    console.log(existingImages);
     let UploadResult = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {

@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 const cloudinary = require("../utils/cloudinary");
 const multer = require("multer");
+const verifyToken = require("../middlewares/jwt");
+const { verifyAdmin } = require("../middlewares/jwt");
 
 // Upload configuration: memory storage, limit file size and validate mimetypes
 const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2 MB per file
@@ -49,11 +51,12 @@ router.get("/", async (req, res) => {
       });
     }
     const productList = await Product.find().skip((page - 1) * perPage).limit(perPage).exec();
-    const product = await Product.find();
     return res.status(200).json({
       "success": true,
       "productList": productList,
-      "product": product,
+      "totalDocs": totalPosts,
+      "totalPages": totalPages,
+      "page": page,
       "message": "Data fetched successfully"
     });
   } catch (err) {
@@ -89,7 +92,7 @@ router.get("/featured", async (req, res) => {
 });
 
 // Create product with images - validate files before passing to cloudinary
-router.post("/create", upload.array("images", MAX_FILES), async (req, res) => {
+router.post("/create", verifyToken, verifyAdmin, upload.array("images", MAX_FILES), async (req, res) => {
   try {
     if (req.files && req.files.length > MAX_FILES) {
       return res.status(400).json({ success: false, message: `Maximum ${MAX_FILES} files allowed` });
@@ -183,7 +186,6 @@ router.get("/:id", async (req, res) => {
         "message": "Product not found"
       });
     }
-    console.log("data", product)
     return res.status(200).json({
       "success": true,
       "product": product,
@@ -198,7 +200,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // Delete a product by ID (keep path consistent with other routes)
-router.delete("/delete/:id", async (req, res) => {
+router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) {
@@ -220,7 +222,7 @@ router.delete("/delete/:id", async (req, res) => {
 });
 
 // Update product - accept new images with same validation
-router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
+router.put("/:id", verifyToken, verifyAdmin, upload.array("images", MAX_FILES), async (req, res) => {
   try {
     if (req.files && req.files.length > MAX_FILES) {
       return res.status(400).json({
@@ -281,8 +283,8 @@ router.put("/:id", upload.array("images", MAX_FILES), async (req, res) => {
 
 
 
-// Delete all products - ensure this is protected in production (left as-is for admin tasks)
-router.delete("/delete-all", async (req, res) => {
+// Delete all products
+router.delete("/delete-all", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await Product.deleteMany({});
     res.status(200).json({

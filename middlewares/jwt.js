@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { User } = require("../models/user");
 
 const verifyToken = (req, res, next) => {
     const token = req.header("accessToken") || req.header("Authorization")?.replace("Bearer ", "");
@@ -27,4 +28,23 @@ const verifyToken = (req, res, next) => {
     }
 }
 
+const verifyAdmin = async (req, res, next) => {
+    try {
+        const user = await User.findById(req.user._id);
+        if (!user || !user.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: "Admin access required"
+            });
+        }
+        next();
+    } catch (err) {
+        return res.status(500).json({
+            success: false,
+            error: err.message
+        });
+    }
+};
+
 module.exports = verifyToken;
+module.exports.verifyAdmin = verifyAdmin;

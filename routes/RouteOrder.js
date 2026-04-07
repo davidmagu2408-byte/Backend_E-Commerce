@@ -3,6 +3,7 @@ const { Product } = require("../models/product");
 const express = require("express");
 const router = express.Router();
 const verifyToken = require("../middlewares/jwt");
+const { verifyAdmin } = require("../middlewares/jwt");
 
 // Create order
 router.post("/create", verifyToken, async (req, res) => {
@@ -54,7 +55,7 @@ router.post("/create", verifyToken, async (req, res) => {
       shippingFee,
       total,
       note: note || "",
-      paymentStatus: paymentMethod === "cod" ? "pending" : "pending",
+      paymentStatus: "pending",
     });
 
     const savedOrder = await order.save();
@@ -70,6 +71,31 @@ router.post("/create", verifyToken, async (req, res) => {
       success: true,
       message: "Đặt hàng thành công!",
       order: savedOrder,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Admin: Get all orders
+router.get("/", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const perPage = 10;
+    const totalDocs = await Order.countDocuments();
+    const totalPages = Math.ceil(totalDocs / perPage);
+
+    const orders = await Order.find()
+      .populate("user", "name email phone")
+      .sort({ dateCreated: -1 })
+      .skip((page - 1) * perPage)
+      .limit(perPage);
+
+    res.status(200).json({
+      success: true,
+      orders,
+      totalPages,
+      page,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -120,6 +146,48 @@ router.get("/:id", verifyToken, async (req, res) => {
   }
 });
 
+// Get banking payment info for an order
+router.get("/:id/banking-info", verifyToken, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Đơn hàng không tồn tại" });
+    }
+    if (order.user.toString() !== req.user._id) {
+      return res.status(403).json({ success: false, message: "Không có quyền truy cập" });
+    }
+    if (order.paymentMethod !== "banking") {
+      return res.status(400).json({ success: false, message: "Đơn hàng không sử dụng chuyển khoản" });
+    }
+
+    const bankId = process.env.BANKING_BANK_ID || "MB";
+    const accountNo = process.env.BANKING_ACCOUNT_NO || "0389981043";
+    const accountName = process.env.BANKING_ACCOUNT_NAME || "ECOMMERCE WEBSITE";
+    const bankName = process.env.BANKING_BANK_NAME || "MBBank";
+    const transferContent = `DH${order._id.toString().slice(-8).toUpperCase()}`;
+    const amount = order.total;
+
+    const qrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact.png?amount=${amount}&addInfo=${encodeURIComponent(transferContent)}&accountName=${encodeURIComponent(accountName)}`;
+
+    res.status(200).json({
+      success: true,
+      banking: {
+        bankName,
+        bankId,
+        accountNo,
+        accountName,
+        amount,
+        transferContent,
+        qrUrl,
+        orderId: order._id,
+        paymentStatus: order.paymentStatus,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Cancel order (only if pending)
 router.put("/:id/cancel", verifyToken, async (req, res) => {
   try {
@@ -153,33 +221,8 @@ router.put("/:id/cancel", verifyToken, async (req, res) => {
   }
 });
 
-// Admin: Get all orders
-router.get("/", verifyToken, async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const perPage = 10;
-    const totalDocs = await Order.countDocuments();
-    const totalPages = Math.ceil(totalDocs / perPage);
-
-    const orders = await Order.find()
-      .populate("user", "name email phone")
-      .sort({ dateCreated: -1 })
-      .skip((page - 1) * perPage)
-      .limit(perPage);
-
-    res.status(200).json({
-      success: true,
-      orders,
-      totalPages,
-      page,
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // Admin: Update order status
-router.put("/:id/status", verifyToken, async (req, res) => {
+router.put("/:id/status", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const { orderStatus, paymentStatus } = req.body;
     const update = {};
