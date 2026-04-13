@@ -21,8 +21,8 @@ router.post("/register", authLimiter, async (req, res) => {
         let user = await User.findOne({ email: req.body.email.trim() });
         if (user) {
             return res.status(400).json({
-                "success": false,
-                "message": "User already registered."
+                success: false,
+                message: "User already registered."
             });
         }
         user = new User({
@@ -37,13 +37,13 @@ router.post("/register", authLimiter, async (req, res) => {
         user.password = await bcrypt.hash(user.password, salt);
         await user.save();
         res.status(200).send({
-            "success": true,
-            "message": "User registered successfully",
+            success: true,
+            message: "User registered successfully",
         });
     } catch (err) {
         res.status(500).send({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -53,16 +53,16 @@ router.post("/login", authLimiter, async (req, res) => {
         const user = await User.findOne({ email: req.body.email });
         if (!user) {
             return res.status(400).send({
-                "success": false,
-                "message": "Tài khoản không tồn tại."
+                success: false,
+                message: "Tài khoản không tồn tại."
             });
         }
 
         const validPassword = await bcrypt.compare(req.body.password, user.password);
         if (!validPassword) {
             return res.status(400).send({
-                "success": false,
-                "message": "Mật khẩu không đúng."
+                success: false,
+                message: "Mật khẩu không đúng."
             });
         }
 
@@ -89,8 +89,8 @@ router.post("/login", authLimiter, async (req, res) => {
         });
     } catch (err) {
         res.status(500).send({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 })
@@ -100,8 +100,8 @@ router.post("/logout", verifyToken, async (req, res) => {
         const user = await User.findById(req.user._id);
         if (!user) {
             return res.status(400).send({
-                "success": false,
-                "message": "User not found."
+                success: false,
+                message: "User not found."
             });
         }
         user.refreshToken = ""; // Kill the session
@@ -129,35 +129,35 @@ router.get("/refresh-token", async (req, res) => {
         const refreshToken = req.cookies.refreshToken;
         if (!refreshToken) {
             return res.status(401).json({
-                "success": false,
-                "message": "Refresh token is required"
+                success: false,
+                message: "Refresh token is required"
             });
         }
         const user = await User.findOne({ refreshToken });
         if (!user) {
             return res.status(400).json({
-                "success": false,
-                "message": "Invalid refresh token"
+                success: false,
+                message: "Invalid refresh token"
             });
         }
         jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET, (err, decoded) => {
             if (err) {
                 return res.status(403).json({
-                    "success": false,
-                    "message": "Forbidden"
+                    success: false,
+                    message: "Forbidden"
                 });
             }
             const accessToken = jwt.sign({ _id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
             res.status(200).json({
-                "success": true,
-                "message": "Token refreshed successfully",
+                success: true,
+                message: "Token refreshed successfully",
                 accessToken
             });
         });
     } catch (err) {
         res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -166,14 +166,14 @@ router.get("/profile", verifyToken, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select("-password");
         res.status(200).send({
-            "success": true,
-            "user": user,
-            "message": "User profile fetched successfully"
+            success: true,
+            user: user,
+            message: "User profile fetched successfully"
         });
     } catch (err) {
         res.status(500).send({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -209,6 +209,67 @@ router.put("/update", verifyToken, async (req, res) => {
         });
     } catch (err) {
         res.status(500).send({ success: false, error: err.message });
+    }
+});
+
+router.post("/google-login", async (req, res) => {
+    try {
+        const { email, name, photo } = req.body;
+        if (!email || !name) {
+            return res.status(400).json({ success: false, message: "Email and name are required" });
+        }
+
+        let user = await User.findOne({ email });
+        if (!user) {
+            const salt = await bcrypt.genSalt(10);
+            const randomPass = await bcrypt.hash(
+                require("crypto").randomBytes(32).toString("hex"),
+                salt
+            );
+            user = new User({
+                name,
+                email,
+                password: randomPass,
+                phone: "",
+                address: "",
+                images: photo ? [photo] : [],
+                isAdmin: false,
+            });
+            await user.save();
+        }
+
+        if (user.isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: "Tài khoản Admin không thể đăng nhập tại đây"
+            });
+        }
+
+        const accessToken = jwt.sign({ _id: user._id }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "15m" });
+        const refreshToken = jwt.sign({ _id: user._id }, process.env.REFRESH_TOKEN_SECRET, { expiresIn: "7d" });
+        user.refreshToken = refreshToken;
+        await user.save();
+
+        res.cookie("refreshToken", refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === "production",
+            sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+            path: "/",
+            maxAge: 7 * 24 * 60 * 60 * 1000
+        });
+
+        const userResponse = user.toObject();
+        delete userResponse.password;
+        delete userResponse.refreshToken;
+
+        res.status(200).json({
+            success: true,
+            message: "Đăng nhập thành công.",
+            user: userResponse,
+            accessToken,
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message || err });
     }
 });
 

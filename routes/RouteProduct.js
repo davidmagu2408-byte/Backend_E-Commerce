@@ -30,8 +30,8 @@ router.use((req, res, next) => {
   const contentLength = parseInt(req.headers["content-length"] || "0", 10);
   if (contentLength && contentLength > MAX_REQUEST_SIZE) {
     return res.status(413).json({
-      "success": false,
-      "message": "Payload too large"
+      success: false,
+      message: "Payload too large"
     });
   }
   next();
@@ -46,23 +46,23 @@ router.get("/", async (req, res) => {
     const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
     if (page < 1 || page > totalPages) {
       return res.status(404).json({
-        "success": false,
-        "message": "Page not found"
+        success: false,
+        message: "Page not found"
       });
     }
     const productList = await Product.find().skip((page - 1) * perPage).limit(perPage).exec();
     return res.status(200).json({
-      "success": true,
-      "productList": productList,
-      "totalDocs": totalPosts,
-      "totalPages": totalPages,
-      "page": page,
-      "message": "Data fetched successfully"
+      success: true,
+      productList: productList,
+      totalDocs: totalPosts,
+      totalPages: totalPages,
+      page: page,
+      message: "Data fetched successfully"
     });
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -73,21 +73,125 @@ router.get("/featured", async (req, res) => {
     const product = await Product.find({ isFeatured: true });
     if (!product) {
       return res.status(404).json({
-        "success": false,
-        "message": "Product not found"
+        success: false,
+        message: "Product not found"
       });
     } else {
       return res.status(200).json({
-        "success": true,
-        "product": product,
-        "message": "Data fetched successfully"
+        success: true,
+        product: product,
+        message: "Data fetched successfully"
       });
     }
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
+  }
+});
+
+// Get new products (sorted by dateCreated desc)
+router.get("/new", async (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 12, 50);
+    const products = await Product.find().sort({ dateCreated: -1 }).limit(limit);
+    return res.status(200).json({
+      success: true,
+      products: products,
+      message: "New products fetched successfully"
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message || err
+    });
+  }
+});
+
+// Search products by name
+router.get("/search", async (req, res) => {
+  try {
+    const q = (req.query.q || "").trim();
+    if (!q) {
+      return res.status(400).json({ success: false, message: "Query is required" });
+    }
+    const escapedQ = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const products = await Product.find({
+      name: { $regex: escapedQ, $options: "i" }
+    }).limit(50);
+    return res.status(200).json({
+      success: true,
+      products: products,
+      message: "Search results fetched successfully"
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message || err
+    });
+  }
+});
+
+// Add a review to a product
+router.post("/:id/review", verifyToken, async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+    if (!rating || !comment || rating < 1 || rating > 5) {
+      return res.status(400).json({ success: false, message: "Rating (1-5) and comment are required" });
+    }
+    const { User } = require("../models/user");
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    const alreadyReviewed = product.reviews.find(
+      (r) => r.user.toString() === req.user._id.toString()
+    );
+    if (alreadyReviewed) {
+      return res.status(400).json({ success: false, message: "Bạn đã đánh giá sản phẩm này rồi" });
+    }
+    const review = {
+      user: req.user._id,
+      userName: user.name,
+      rating: Number(rating),
+      comment: comment.trim().substring(0, 1000),
+    };
+    product.reviews.push(review);
+    product.numReviews = product.reviews.length;
+    product.rating = product.reviews.reduce((acc, r) => acc + r.rating, 0) / product.reviews.length;
+    await product.save();
+    return res.status(200).json({
+      success: true,
+      message: "Đánh giá đã được thêm",
+      reviews: product.reviews,
+      rating: product.rating,
+      numReviews: product.numReviews
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || err });
+  }
+});
+
+// Get reviews for a product
+router.get("/:id/reviews", async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id).select("reviews rating numReviews");
+    if (!product) {
+      return res.status(404).json({ success: false, message: "Product not found" });
+    }
+    return res.status(200).json({
+      success: true,
+      reviews: product.reviews,
+      rating: product.rating,
+      numReviews: product.numReviews
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message || err });
   }
 });
 
@@ -127,15 +231,15 @@ router.post("/create", verifyToken, verifyAdmin, upload.array("images", MAX_FILE
     });
     const saved = await product.save();
     return res.status(200).send({
-      "success": true,
-      "product": saved,
-      "message": "Data saved successfully"
+      success: true,
+      product: saved,
+      message: "Data saved successfully"
     });
   } catch (err) {
     // multer file filter errors come here as Error
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -147,14 +251,14 @@ router.get("/category/:categoryId", async (req, res) => {
   try {
     const products = await Product.find({ category: req.params.categoryId });
     return res.status(200).json({
-      "success": true,
-      "products": products,
-      "message": "List products by category ID fetched successfully"
+      success: true,
+      products: products,
+      message: "List products by category ID fetched successfully"
     });
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -164,14 +268,14 @@ router.get("/subcategory/:subcategoryId", async (req, res) => {
   try {
     const products = await Product.find({ subcategory: req.params.subcategoryId });
     return res.status(200).json({
-      "success": true,
-      "products": products,
-      "message": "List products by subcategory ID fetched successfully"
+      success: true,
+      products: products,
+      message: "List products by subcategory ID fetched successfully"
     });
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -182,19 +286,19 @@ router.get("/:id", async (req, res) => {
     const product = await Product.findById(req.params.id).populate("category").populate("subcategory").populate("brand");
     if (!product) {
       return res.status(404).json({
-        "success": false,
-        "message": "Product not found"
+        success: false,
+        message: "Product not found"
       });
     }
     return res.status(200).json({
-      "success": true,
-      "product": product,
-      "message": "Data product by ID fetched successfully"
+      success: true,
+      product: product,
+      message: "Data product by ID fetched successfully"
     });
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -205,18 +309,18 @@ router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) {
       return res.status(404).json({
-        "success": false,
-        "message": "Product not found"
+        success: false,
+        message: "Product not found"
       });
     }
     return res.status(200).json({
-      "success": true,
-      "message": "Product deleted"
+      success: true,
+      message: "Product deleted"
     });
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -226,8 +330,8 @@ router.put("/:id", verifyToken, verifyAdmin, upload.array("images", MAX_FILES), 
   try {
     if (req.files && req.files.length > MAX_FILES) {
       return res.status(400).json({
-        "success": false,
-        "message": `Maximum ${MAX_FILES} files allowed`
+        success: false,
+        message: `Maximum ${MAX_FILES} files allowed`
       });
     }
     const existingImages = req.body.existingImages ? (() => {
@@ -265,18 +369,18 @@ router.put("/:id", verifyToken, verifyAdmin, upload.array("images", MAX_FILES), 
     );
 
     if (!product) return res.status(404).json({
-      "success": false,
-      "message": "Product not found"
+      success: false,
+      message: "Product not found"
     });
     return res.status(200).json({
-      "success": true,
-      "message": "Product updated successfully",
-      "data": product
+      success: true,
+      message: "Product updated successfully",
+      data: product
     });
   } catch (err) {
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -288,13 +392,13 @@ router.delete("/delete-all", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await Product.deleteMany({});
     res.status(200).json({
-      "success": true,
-      "message": `${result.deletedCount} products deleted successfully`,
+      success: true,
+      message: `${result.deletedCount} products deleted successfully`,
     });
   } catch (err) {
     res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });

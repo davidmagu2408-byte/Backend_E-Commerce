@@ -39,48 +39,35 @@ router.use((req, res, next) => {
 router.get("/", async (req, res) => {
   try {
     const totalPosts = await Category.countDocuments();
-
-    // Return all items without pagination when no page param
-    if (!req.query.page) {
-      const allCategories = await Category.find();
-      return res.status(200).json({
-        "success": true,
-        "categoryList": allCategories,
-        "category": allCategories,
-        "totalDocs": totalPosts,
-        "message": "Data fetched successfully"
-      });
-    }
-
     const page = parseInt(req.query.page);
     const perPage = 6;
     const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
     if (page < 1 || page > totalPages) {
       return res.status(404).json({
-        "success": false,
-        "message": "Page not found"
+        success: false,
+        message: "Page not found"
       });
     }
 
     const categoryList = await Category.find().skip((page - 1) * perPage).limit(perPage).exec();
     if (!categoryList) {
       return res.status(500).json({
-        "success": false,
-        "message": "Category list not found"
+        success: false,
+        message: "Category list not found"
       });
     }
     res.status(200).json({
-      "success": true,
-      "categoryList": categoryList,
-      "totalDocs": totalPosts,
-      "totalPages": totalPages,
-      "page": page,
-      "message": "Data fetched successfully"
+      success: true,
+      categoryList: categoryList,
+      totalDocs: totalPosts,
+      totalPages: totalPages,
+      page: page,
+      message: "Data fetched successfully"
     });
   } catch (err) {
     res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -90,13 +77,13 @@ router.delete("/delete-all", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const result = await Category.deleteMany({});
     res.status(200).json({
-      "success": true,
-      "message": `${result.deletedCount} categories deleted successfully`,
+      success: true,
+      message: `${result.deletedCount} categories deleted successfully`,
     });
   } catch (err) {
     res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -107,22 +94,22 @@ router.get("/:id", async (req, res) => {
     const category = await Category.findById(req.params.id);
     if (!category) {
       return res.status(404).json({
-        "success": false,
-        "message": "Category id not found"
+        success: false,
+        message: "Category id not found"
       });
     }
     return res.status(200).send(
       {
-        "success": true,
-        "category": category,
-        "message": "Data fetched successfully"
+        success: true,
+        category: category,
+        message: "Data fetched successfully"
       });
   } catch (err) {
     return res
       .status(500)
       .json({
-        "success": false,
-        "error": err.message || err
+        success: false,
+        error: err.message || err
       });
   }
 });
@@ -146,15 +133,15 @@ router.post("/create", verifyToken, verifyAdmin, upload.array("images", 10), asy
     const saved = await category.save();
     return res.status(200).json(
       {
-        "success": true,
-        "category": saved,
-        "message": "Data saved successfully"
+        success: true,
+        category: saved,
+        message: "Data saved successfully"
       })
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -165,18 +152,18 @@ router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
     const category = await Category.findByIdAndDelete(req.params.id);
     if (!category) {
       return res.status(404).json({
-        "success": false,
-        "message": "Category not found"
+        success: false,
+        message: "Category not found"
       });
     }
     res.status(200).json({
-      "success": true,
-      "message": "Category deleted successfully"
+      success: true,
+      message: "Category deleted successfully"
     });
   } catch (err) {
     res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });
@@ -207,18 +194,18 @@ router.put("/edit/:id", verifyToken, verifyAdmin, upload.array("images", 10), as
     );
     if (!category)
       return res.status(404).json({
-        "success": false,
-        "message": "Not found"
+        success: false,
+        message: "Not found"
       });
     res.status(200).json({
-      "success": true,
-      "data": category,
-      "message": "Data updated successfully",
+      success: true,
+      data: category,
+      message: "Data updated successfully",
     });
   } catch (err) {
     res.status(500).json({
-      "success": false,
-      "error": err.message || err
+      success: false,
+      error: err.message || err
     });
   }
 });

@@ -13,14 +13,14 @@ router.post("/create", verifyToken, verifyAdmin, async (req, res) => {
         });
         const data = await subcategory.save();
         return res.status(200).json({
-            "success": true,
-            "subcategory": data,
-            "message": "Data saved successfully"
+            success: true,
+            subcategory: data,
+            message: "Data saved successfully"
         });
     } catch (err) {
         res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -29,44 +29,34 @@ router.get("/", async (req, res) => {
     try {
         const totalPosts = await subCategory.countDocuments();
 
-        // Return all items without pagination when no page param
-        if (!req.query.page) {
-            const allSubCategories = await subCategory.find().populate("category");
-            return res.status(200).json({
-                "success": true,
-                "subCategoryList": allSubCategories,
-                "subCategory": allSubCategories,
-                "totalDocs": totalPosts
-            });
-        }
-
-        const page = parseInt(req.query.page);
+        const page = parseInt(req.query.page) || 1;
         const perPage = 6;
         const totalPages = totalPosts === 0 ? 1 : Math.ceil(totalPosts / perPage);
         if (page < 1 || page > totalPages) {
             return res.status(404).json({
-                "success": false,
-                "message": "Page not found"
+                success: false,
+                message: "Page not found"
             });
         }
-        const data = await subCategory.find().populate("category").skip((page - 1) * perPage).limit(perPage).exec();
+        const data = await subCategory.find().skip((page - 1) * perPage).limit(perPage).exec();
         if (!data) {
             return res.status(500).json({
-                "success": false,
-                "message": "SubCategory list not found"
+                success: false,
+                message: "Category list not found"
             });
         }
         res.status(200).json({
-            "success": true,
-            "subCategoryList": data,
-            "totalDocs": totalPosts,
-            "totalPages": totalPages,
-            "page": page
+            success: true,
+            subCategoryList: data,
+            totalDocs: totalPosts,
+            totalPages: totalPages,
+            page: page,
+            message: "Data fetched successfully"
         });
     } catch (err) {
         res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -77,19 +67,19 @@ router.get("/:id", async (req, res) => {
         const data = await subCategory.findById(req.params.id).populate("category");
         if (!data) {
             return res.status(404).json({
-                "success": false,
-                "message": "SubCategory not found"
+                success: false,
+                message: "SubCategory not found"
             });
         }
         return res.status(200).json({
-            "success": true,
-            "subCategory": data,
-            "message": "SubCategory fetched successfully"
+            success: true,
+            subCategory: data,
+            message: "SubCategory fetched successfully"
         });
     } catch (err) {
         return res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -107,19 +97,19 @@ router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
         );
         if (!data) {
             return res.status(404).json({
-                "success": false,
-                "message": "SubCategory not found"
+                success: false,
+                message: "SubCategory not found"
             });
         }
         return res.status(200).json({
-            "success": true,
-            "subCategory": data,
-            "message": "SubCategory updated successfully"
+            success: true,
+            subCategory: data,
+            message: "SubCategory updated successfully"
         });
     } catch (err) {
         return res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -130,18 +120,18 @@ router.delete("/delete/:id", verifyToken, verifyAdmin, async (req, res) => {
         const data = await subCategory.findByIdAndDelete(req.params.id);
         if (!data) {
             return res.status(404).json({
-                "success": false,
-                "message": "SubCategory not found"
+                success: false,
+                message: "SubCategory not found"
             });
         }
         return res.status(200).json({
-            "success": true,
-            "message": "SubCategory deleted successfully"
+            success: true,
+            message: "SubCategory deleted successfully"
         });
     } catch (err) {
         return res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
@@ -151,13 +141,13 @@ router.delete("/delete-all", verifyToken, verifyAdmin, async (req, res) => {
     try {
         const result = await subCategory.deleteMany({});
         return res.status(200).json({
-            "success": true,
-            "message": `${result.deletedCount} subcategories deleted successfully`
+            success: true,
+            message: `${result.deletedCount} subcategories deleted successfully`
         });
     } catch (err) {
         return res.status(500).json({
-            "success": false,
-            "error": err.message || err
+            success: false,
+            error: err.message || err
         });
     }
 });
