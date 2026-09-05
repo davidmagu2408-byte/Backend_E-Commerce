@@ -6,6 +6,7 @@ const cors = require("cors");
 const dns = require("node:dns/promises");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const cookieParser = require("cookie-parser");
+const PORT = process.env.PORT || 5000;
 
 const ALLOWED_ORIGINS = [
   "https://client-demo-ecommerce.vercel.app",
@@ -33,8 +34,8 @@ mongoose
   .then(() => {
     console.log("Database connection is ready");
     //Server
-    app.listen(process.env.PORT, () => {
-      console.log(`server is running http://localhost:${process.env.PORT}`);
+    app.listen(PORT, () => {
+      console.log(`server is running http://localhost:${PORT}`);
     });
   })
   .catch((err) => {
