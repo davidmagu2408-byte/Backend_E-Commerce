@@ -2,7 +2,7 @@ const express = require("express");
 const app = express();
 const mongoose = require("mongoose");
 const cors = require("cors");
-require("dotenv/config");
+require("dotenv").config();
 const dns = require("node:dns/promises");
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const cookieParser = require("cookie-parser");
