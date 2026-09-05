@@ -8,8 +8,8 @@ dns.setServers(["1.1.1.1", "8.8.8.8"]);
 const cookieParser = require("cookie-parser");
 
 const ALLOWED_ORIGINS = [
-  //'https://client-demo-ecommerce.vercel.app',
-  //'https://admin-demo-ecommerce.vercel.app',
+  "https://client-demo-ecommerce.vercel.app",
+  "https://admin-demo-ecommerce.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174",
 ];
